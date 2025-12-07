@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>寻找文真的经纬度</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0c1e3e 0%, #1a2a4a 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 100%;
+            width: 100%;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .start-screen, .question-screen, .view-coordinates-screen, .input-screen, .success-screen {
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* 返回按钮远离文字 */
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+        }
+        
+        .welcome-text {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            color: #ffd700;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #ffd700, #ffcc00);
+            color: #0c1e3e;
+            border: none;
+            padding: 18px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 15px 0;
+            width: 100%;
+            max-width: 280px;
+            height: 56px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+        }
+        
+        .btn:active {
+            transform: scale(0.95);
+        }
+        
+        .question-screen, .view-coordinates-screen, .input-screen, .success-screen {
+            display: none;
+        }
+        
+        .question-title {
+            font-size: 16px;
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+        
+        .question-text {
+            font-size: 18px;
+            line-height: 1.5;
+            margin-bottom: 25px;
+            color: white;
+        }
+        
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .option-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            padding: 15px 20px;
+            font-size: 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            height: 56px;
+        }
+        
+        .option-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+        }
+        
+        .option-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .shake {
+            animation: shake 0.6s ease-in-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        
+        .number-display {
+            margin: 30px 0;
+            color: #ffd700;
+            font-family: monospace;
+            text-align: center;
+        }
+        
+        .coordinate-line {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .number-item {
+            display: inline-block;
+            width: 40px;
+            height: 50px;
+            line-height: 50px;
+            margin: 0 2px;
+            opacity: 0.5;
+            transition: all 0.5s ease;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border: 2px solid rgba(255, 215, 0, 0.3);
+        }
+        
+        .number-item.symbol {
+            background: transparent;
+            border: none;
+            width: auto;
+            font-size: 24px;
+        }
+        
+        .number-item.unlocked {
+            opacity: 1;
+            color: #ffd700;
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+            animation: bounceIn 0.6s ease-out;
+        }
+        
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            75% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+        
+        .coordinate-input-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 30px 0;
+            align-items: center;
+        }
+        
+        .input-row {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .coordinate-input-cell {
+            width: 40px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            border-radius: 8px;
+            font-size: 24px;
+            color: white;
+            text-align: center;
+            outline: none;
+            font-weight: bold;
+        }
+        
+        .coordinate-input-cell:focus {
+            border-color: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        
+        .feedback {
+            font-size: 16px;
+            margin: 15px 0;
+            min-height: 25px;
+            color: #ffd700;
+        }
+        
+        .success-screen {
+            position: relative;
+            z-index: 10;
+        }
+        
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) infinite ease-in-out;
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background-color: #ffd700;
+            z-index: 1000;
+            animation: fall linear forwards;
+        }
+        
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .earth {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle at 30% 30%, #4a90e2, #2a5da0);
+            border-radius: 50%;
+            margin: 30px auto;
+            animation: rotateEarth 10s linear infinite;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .earth::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 30%, transparent 45%, rgba(255,255,255,0.1) 55%);
+            border-radius: 50%;
+        }
+        
+        @keyframes rotateEarth {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .heart {
+            font-size: 60px;
+            animation: heartbeat 2s infinite;
+            margin: 20px 0;
+        }
+        
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        .footer {
+            position: fixed;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 0 20px;
+        }
+        
+        .success-message {
+            font-size: 20px;
+            line-height: 1.6;
+            color: #ffd700;
+            margin: 20px 0;
+        }
+        
+        .view-coordinates-title {
+            font-size: 20px;
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+        
+        .view-coordinates-text {
+            font-size: 18px;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .view-number-display {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #ffd700;
+            font-family: monospace;
+            text-align: center;
+        }
+        
+        .view-coordinate-line {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <div class="container">
+        <!-- 开局界面 -->
+        <div class="start-screen" id="startScreen">
+            <p class="welcome-text">林文真不见啦！让我们来找到她</p>
+            <button class="btn" onclick="showQuestion(0)">开始寻找</button>
+        </div>
+        
+        <!-- 题目界面 -->
+        <div class="question-screen" id="questionScreen">
+            <button class="back-btn" onclick="showStartScreen()">← 返回</button>
+            
+            <div class="number-display" id="numberDisplay">
+                <div class="coordinate-line">
+                    <span class="number-item">?</span>
+                    <span class="number-item">?</span>
+                    <span class="number-item">.</span>
+                    <span class="number-item">?</span>
+                    <span class="number-item symbol">°</span>
+                    <span class="number-item symbol">N</span>
+                </div>
+                <div class="coordinate-line">
+                    <span class="number-item">?</span>
+                    <span class="number-item">?</span>
+                    <span class="number-item">?</span>
+                    <span class="number-item">.</span>
+                    <span class="number-item">?</span>
+                    <span class="number-item symbol">°</span>
+                    <span class="number-item symbol">E</span>
+                </div>
+            </div>
+            
+            <div class="question-title">第<span id="currentQuestion">1</span>题</div>
+            <div class="question-text" id="questionText"></div>
+            
+            <div class="options" id="optionsContainer"></div>
+            
+            <div class="feedback" id="feedback"></div>
+        </div>
+        
+        <!-- 查看坐标界面 -->
+        <div class="view-coordinates-screen" id="viewCoordinatesScreen">
+            <button class="back-btn" onclick="showQuestion(currentQuestionIndex)">← 返回</button>
+            
+            <div class="view-coordinates-title">你找到的坐标</div>
+            <div class="view-coordinates-text">请记住这个坐标</div>
+            
+            <div class="view-number-display" id="viewNumberDisplay">
+                <div class="view-coordinate-line">纬度: ??.?°N</div>
+                <div class="view-coordinate-line">经度: ???.?°E</div>
+            </div>
+            
+            <button class="btn" onclick="showInputScreen()">确认坐标</button>
+        </div>
+        
+        <!-- 坐标输入界面（修正为7个数字，无格式提示） -->
+        <div class="input-screen" id="inputScreen">
+            <button class="back-btn" onclick="showViewCoordinates()">← 返回</button>
+            
+            <div class="question-title">请输入你找到的坐标</div>
+            
+            <div class="coordinate-input-grid" id="inputGrid">
+                <!-- 动态生成输入框 -->
+            </div>
+            
+            <button class="btn" onclick="checkCoordinate()">确认坐标</button>
+            <div class="feedback" id="inputFeedback"></div>
+        </div>
+        
+        <!-- 成功界面 -->
+        <div class="success-screen" id="successScreen">
+            <div class="earth"></div>
+            <div class="heart">❤️</div>
+            <div class="success-message" id="successMessage"></div>
+        </div>
+    </div>
+    
+    <div class="footer">致林文真老师：你永远温暖如夏。</div>
+
+    <script>
+        // 目标坐标：福建平潭雅阁度假酒店（25.5°N, 119.8°E）
+        const latDigits = ['2', '5', '5']; // 纬度整数位 + 小数位（共3位）
+        const lngDigits = ['1', '1', '9', '8']; // 经度整数三位 + 小数一位（共4位）
+        const unlockedLatPositions = [false, false, false];
+        const unlockedLngPositions = [false, false, false, false];
+        
+        let currentQuestionIndex = 0;
+        let correctAnswers = 0;
+        let coordinateInputValues = ['', '', '', '', '', '', '']; // 共7位：2 5 5 1 1 9 8
+
+        // Web Audio API 音效
+        function playCorrectSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+                console.log('音频播放失败');
+            }
+        }
+        
+        // 创建星星背景
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            const starCount = 100;
+            
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.width = Math.random() * 3 + 1 + 'px';
+                star.style.height = star.style.width;
+                star.style.setProperty('--duration', Math.random() * 3 + 2 + 's');
+                starsContainer.appendChild(star);
+            }
+        }
+        
+        // 创建彩带动效
+        function createConfetti() {
+            const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'];
+            const confettiCount = 150;
+            
+            for (let i = 0; i < confettiCount; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.width = Math.random() * 10 + 5 + 'px';
+                confetti.style.height = Math.random() * 10 + 5 + 'px';
+                confetti.style.animationDuration = Math.random() * 3 + 2 + 's';
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                
+                document.body.appendChild(confetti);
+                
+                setTimeout(() => {
+                    if (confetti.parentNode) {
+                        confetti.parentNode.removeChild(confetti);
+                    }
+                }, 5000);
+            }
+        }
+        
+        // 题目数据
+        const questions = [
+            {
+                question: "某日，北半球某地正午太阳高度角为60°，昼长14小时。若太阳直射15°N，该地纬度最接近？",
+                options: ["A. 25°N", "B. 35°N", "C. 45°N", "D. 55°N"],
+                correct: 0,
+                unlock: { lat: [0, 1] } // 解锁纬度前2位：2, 5
+            },
+            {
+                question: "南亚夏季风的形成，主要受以下哪一因素主导？",
+                options: ["A. 海陆热力性质差异", "B. 气压带风带季节移动", "C. 地形抬升", "D. 洋流热量输送"],
+                correct: 1,
+                unlock: { lat: [2] } // 解锁纬度第3位：5
+            },
+            {
+                question: "福建省平潭县所在的东南沿海，其地质构造背景主要是？",
+                options: ["A. 亚欧-太平洋板块碰撞带", "B. 亚欧板块内部稳定地块", "C. 亚欧-菲律宾海板块俯冲带影响区", "D. 印度洋板块远程挤压前缘"],
+                correct: 2,
+                unlock: { lng: [0, 1, 2, 3] } // 解锁经度4位：1, 1, 9, 8
+            }
+        ];
+        
+        // 幽默错误提示
+        const errorMessages = [
+            "这答案比死海还沉，浮不起来啦～",
+            "小心！你的选择正在引发8级认知地震！",
+            "板块可以漂移，但我的喜欢从不偏移——再试一次？"
+        ];
+        
+        // 显示开始界面
+        function showStartScreen() {
+            document.getElementById('questionScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'block';
+        }
+        
+        // 显示题目
+        function showQuestion(index) {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('questionScreen').style.display = 'block';
+            
+            currentQuestionIndex = index;
+            const question = questions[index];
+            
+            document.getElementById('currentQuestion').textContent = index + 1;
+            document.getElementById('questionText').textContent = question.question;
+            
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option, i) => {
+                const button = document.createElement('button');
+                button.className = 'option-btn';
+                button.textContent = option;
+                button.onclick = () => checkAnswer(i);
+                optionsContainer.appendChild(button);
+            });
+        }
+        
+        // 检查答案
+        function checkAnswer(selectedIndex) {
+            const question = questions[currentQuestionIndex];
+            const feedback = document.getElementById('feedback');
+            const buttons = document.querySelectorAll('.option-btn');
+            
+            if (selectedIndex === question.correct) {
+                playCorrectSound();
+                feedback.textContent = '离你更近了一点 ❤️';
+                feedback.style.color = '#ffd700';
+                
+                if (question.unlock.lat) {
+                    question.unlock.lat.forEach(pos => {
+                        if (!unlockedLatPositions[pos]) {
+                            unlockedLatPositions[pos] = true;
+                        }
+                    });
+                }
+                if (question.unlock.lng) {
+                    question.unlock.lng.forEach(pos => {
+                        if (!unlockedLngPositions[pos]) {
+                            unlockedLngPositions[pos] = true;
+                        }
+                    });
+                }
+                
+                updateNumberDisplay();
+                
+                setTimeout(() => {
+                    if (correctAnswers < 2 && currentQuestionIndex < 2) {
+                        correctAnswers++;
+                        showQuestion(currentQuestionIndex + 1);
+                    } else if (currentQuestionIndex === 2) {
+                        document.getElementById('questionScreen').style.display = 'none';
+                        updateViewNumberDisplay();
+                        document.getElementById('viewCoordinatesScreen').style.display = 'block';
+                    }
+                }, 1500);
+            } else {
+                feedback.textContent = errorMessages[Math.floor(Math.random() * errorMessages.length)];
+                feedback.style.color = '#ff6b6b';
+                
+                buttons[selectedIndex].classList.add('shake');
+                setTimeout(() => {
+                    buttons[selectedIndex].classList.remove('shake');
+                }, 600);
+            }
+        }
+        
+        // 更新数字显示
+        function updateNumberDisplay() {
+            const latItems = document.querySelectorAll('#numberDisplay .coordinate-line:first-child .number-item');
+            latItems[0].textContent = unlockedLatPositions[0] ? latDigits[0] : '?';
+            latItems[1].textContent = unlockedLatPositions[1] ? latDigits[1] : '?';
+            latItems[3].textContent = unlockedLatPositions[2] ? latDigits[2] : '?';
+            
+            if (unlockedLatPositions[0]) latItems[0].classList.add('unlocked');
+            if (unlockedLatPositions[1]) latItems[1].classList.add('unlocked');
+            if (unlockedLatPositions[2]) latItems[3].classList.add('unlocked');
+            
+            const lngItems = document.querySelectorAll('#numberDisplay .coordinate-line:last-child .number-item');
+            lngItems[0].textContent = unlockedLngPositions[0] ? lngDigits[0] : '?';
+            lngItems[1].textContent = unlockedLngPositions[1] ? lngDigits[1] : '?';
+            lngItems[2].textContent = unlockedLngPositions[2] ? lngDigits[2] : '?';
+            lngItems[4].textContent = unlockedLngPositions[3] ? lngDigits[3] : '?';
+            
+            if (unlockedLngPositions[0]) lngItems[0].classList.add('unlocked');
+            if (unlockedLngPositions[1]) lngItems[1].classList.add('unlocked');
+            if (unlockedLngPositions[2]) lngItems[2].classList.add('unlocked');
+            if (unlockedLngPositions[3]) lngItems[4].classList.add('unlocked');
+        }
+        
+        // 更新查看坐标界面的显示
+        function updateViewNumberDisplay() {
+            const viewDisplay = document.getElementById('viewNumberDisplay');
+            let latText = '';
+            latText += unlockedLatPositions[0] ? '2' : '?';
+            latText += unlockedLatPositions[1] ? '5' : '?';
+            latText += '.';
+            latText += unlockedLatPositions[2] ? '5' : '?';
+            latText += '°N';
+            
+            let lngText = '';
+            lngText += unlockedLngPositions[0] ? '1' : '?';
+            lngText += unlockedLngPositions[1] ? '1' : '?';
+            lngText += unlockedLngPositions[2] ? '9' : '?';
+            lngText += '.';
+            lngText += unlockedLngPositions[3] ? '8' : '?';
+            lngText += '°E';
+            
+            viewDisplay.innerHTML = `
+                <div class="view-coordinate-line">纬度: ${latText}</div>
+                <div class="view-coordinate-line">经度: ${lngText}</div>
+            `;
+        }
+        
+        // 显示输入界面（7个数字，无格式提示）
+        function showInputScreen() {
+            document.getElementById('viewCoordinatesScreen').style.display = 'none';
+            document.getElementById('inputScreen').style.display = 'block';
+            
+            const inputGrid = document.getElementById('inputGrid');
+            inputGrid.innerHTML = '';
+            
+            // 第一行：纬度（2 5 5）+ 小数点（隐藏） + 小数位（5）
+            const latRow = document.createElement('div');
+            latRow.className = 'input-row';
+            
+            // 纬度整数位：2 5
+            for (let i = 0; i < 2; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'coordinate-input-cell';
+                input.maxLength = 1;
+                input.dataset.index = i;
+                input.addEventListener('input', function() {
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                    coordinateInputValues[i] = this.value;
+                    if (this.value && i < 6) {
+                        document.querySelector(`.coordinate-input-cell[data-index="${i+1}"]`).focus();
+                    }
+                });
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && !this.value && i > 0) {
+                        document.querySelector(`.coordinate-input-cell[data-index="${i-1}"]`).focus();
+                    }
+                });
+                latRow.appendChild(input);
+            }
+            
+            // 小数点占位符（隐藏）
+            const latDot = document.createElement('div');
+            latDot.className = 'coordinate-input-cell';
+            latDot.textContent = '.';
+            latDot.style.background = 'transparent';
+            latDot.style.border = 'none';
+            latDot.style.cursor = 'default';
+            latRow.appendChild(latDot);
+            
+            // 纬度小数位：5
+            const latDecimalInput = document.createElement('input');
+            latDecimalInput.type = 'text';
+            latDecimalInput.className = 'coordinate-input-cell';
+            latDecimalInput.maxLength = 1;
+            latDecimalInput.dataset.index = 2;
+            latDecimalInput.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '');
+                coordinateInputValues[2] = this.value;
+                if (this.value && 2 < 6) {
+                    document.querySelector(`.coordinate-input-cell[data-index="${3}"]`).focus();
+                }
+            });
+            latDecimalInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' && !this.value && 2 > 0) {
+                    document.querySelector(`.coordinate-input-cell[data-index="${1}"]`).focus();
+                }
+            });
+            latRow.appendChild(latDecimalInput);
+            
+            inputGrid.appendChild(latRow);
+            
+            // 第二行：经度（1 1 9）+ 小数点（隐藏） + 小数位（8）
+            const lngRow = document.createElement('div');
+            lngRow.className = 'input-row';
+            
+            // 经度整数位：1 1 9
+            for (let i = 3; i < 6; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'coordinate-input-cell';
+                input.maxLength = 1;
+                input.dataset.index = i;
+                input.addEventListener('input', function() {
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                    coordinateInputValues[i] = this.value;
+                    if (this.value && i < 6) {
+                        document.querySelector(`.coordinate-input-cell[data-index="${i+1}"]`).focus();
+                    }
+                });
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && !this.value && i > 3) {
+                        document.querySelector(`.coordinate-input-cell[data-index="${i-1}"]`).focus();
+                    }
+                });
+                lngRow.appendChild(input);
+            }
+            
+            // 小数点占位符（隐藏）
+            const lngDot = document.createElement('div');
+            lngDot.className = 'coordinate-input-cell';
+            lngDot.textContent = '.';
+            lngDot.style.background = 'transparent';
+            lngDot.style.border = 'none';
+            lngDot.style.cursor = 'default';
+            lngRow.appendChild(lngDot);
+            
+            // 经度小数位：8
+            const lngDecimalInput = document.createElement('input');
+            lngDecimalInput.type = 'text';
+            lngDecimalInput.className = 'coordinate-input-cell';
+            lngDecimalInput.maxLength = 1;
+            lngDecimalInput.dataset.index = 6;
+            lngDecimalInput.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '');
+                coordinateInputValues[6] = this.value;
+                if (this.value && 6 < 6) {
+                    document.querySelector(`.coordinate-input-cell[data-index="${7}"]`).focus(); // 无下一项
+                }
+            });
+            lngDecimalInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' && !this.value && 6 > 3) {
+                    document.querySelector(`.coordinate-input-cell[data-index="${5}"]`).focus();
+                }
+            });
+            lngRow.appendChild(lngDecimalInput);
+            
+            inputGrid.appendChild(lngRow);
+        }
+        
+        // 返回查看坐标界面
+        function showViewCoordinates() {
+            document.getElementById('inputScreen').style.display = 'none';
+            document.getElementById('viewCoordinatesScreen').style.display = 'block';
+        }
+        
+        // 检查坐标输入（7位）
+        function checkCoordinate() {
+            const expected = ['2','5','5','1','1','9','8'];
+            const userInput = [...coordinateInputValues];
+            
+            // 检查是否全部填写
+            if (userInput.some(val => val === '')) {
+                document.getElementById('inputFeedback').textContent = '请完整填写所有格子 ❤️';
+                document.getElementById('inputFeedback').style.color = '#ff6b6b';
+                return;
+            }
+            
+            const isCorrect = userInput.every((val, i) => val === expected[i]);
+            
+            if (isCorrect) {
+                document.getElementById('inputScreen').style.display = 'none';
+                document.getElementById('successScreen').style.display = 'block';
+                document.getElementById('successMessage').innerHTML = 
+                    '找到啦！林文真，你不在地图上，<br>你在我心跳的坐标里 ❤️';
+                createConfetti();
+            } else {
+                document.getElementById('inputFeedback').textContent = '再仔细想想，答案就在你心里 ❤️';
+                document.getElementById('inputFeedback').style.color = '#ff6b6b';
+                
+                const inputs = document.querySelectorAll('.coordinate-input-cell');
+                inputs.forEach(input => input.value = '');
+                coordinateInputValues = ['', '', '', '', '', '', ''];
+                if (inputs[0]) inputs[0].focus();
+            }
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            createStars();
+            updateNumberDisplay();
+        });
+        
+        document.addEventListener('touchmove', function(e) {
+            if (e.scale !== 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
